@@ -29,7 +29,7 @@ pub async fn spawn_game_handler(client: LichessClient, game: Game, profile: Lich
                 }
             },
             Err(err) => {
-                println!("Failed to read game events");
+                println!("Failed to read game events: {:?}", err);
             }
         };
     });
@@ -55,15 +55,23 @@ fn play_game(client: LichessClient, profile: LichessProfile, events: Receiver<Ga
 
     let mut turn = 1;
 
-    loop {
+    while move_generator.generate_moves(&game_state).moves.len() > 0 {
         if game_state.to_move() == ai_color {
-            apply_ai_move(&client, &game_id, &move_generator, &mut game_state, &mut transposition_table);
+            if let Err(err) = apply_ai_move(&client, &game_id, &move_generator, &mut game_state, &mut transposition_table) {
+                println!("Failed apply AI move: {:?}", err);
+                panic!();
+            }
             turn += 1;
         } else {
-            apply_opponent_move(&events, &move_generator, &mut game_state, &turn);
+            if let Err(err) = apply_opponent_move(&events, &move_generator, &mut game_state, &turn) {
+                println!("Failed to apply player move: {:?}", err);
+                panic!();
+            }
             turn += 1;
         }
     }
+
+    println!("Game ended");
 
     Ok(())
 }

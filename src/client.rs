@@ -49,7 +49,10 @@ impl LichessClient {
                                 //println!("Event raw: {:?}", bytes);
 
                                 match parse_json(&bytes) {
-                                    Ok(Some(event)) => sender.send(event),
+                                    Ok(Some(event)) => if let Err(err) = sender.send(event) {
+                                        println!("Error sending bot event: {}", err);
+                                        break;
+                                    },
                                     Ok(None) => continue,
                                     Err(err) => {
                                         println!("Error while parsing event: {:?}", err);
@@ -104,14 +107,16 @@ impl LichessClient {
                                 //println!("Game event raw: {:?}", bytes);
 
                                 match parse_json(&bytes) {
-                                    Ok(Some(event)) => sender.send(event),
+                                    Ok(Some(event)) => if let Err(err) = sender.send(event) {
+                                        println!("Error sending game event: {}", err);
+                                        break;
+                                    },
                                     Ok(None) => continue,
                                     Err(err) => {
                                         println!("Error while parsing event: {:?}", err);
                                         break;
                                     }
                                 };
-                                bytes
                             },
                             Err(err) => {
                                 println!("Error while receiving game events: {}", err.to_string());
