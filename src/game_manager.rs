@@ -1,11 +1,12 @@
 use tokio;
 use tokio::task::{JoinHandle, spawn_blocking};
 use std::sync::mpsc::Receiver;
+use std::time::Duration;
 
 use chess::model::game_state;
 use chess::model::game_state::{Color, GameState};
 use chess::model::move_generator::MoveGenerator;
-use chess::search::minimax_search::negamax_alpha_beta_with_trasposition_table;
+use chess::search::minimax_search::iterative_alpha_beta;
 use chess::search::transposition_table::TranspositionTable;
 use chess::uci::uci_utils;
 
@@ -83,10 +84,10 @@ fn apply_ai_move(
     game_state: &mut GameState,
     table: &mut TranspositionTable) -> Result<(), LichessError> {
 
-    let (next_move, _, _) = negamax_alpha_beta_with_trasposition_table(game_state, move_generator, table, 5);
+    let (next_move, evaluation, depth) = iterative_alpha_beta(game_state, move_generator, table, Duration::from_secs(5));
     let uci_move = uci_utils::move_to_uci(&next_move.unwrap());
 
-    println!("AI plays: {}", uci_move);
+    println!("AI plays: {}, evaluation: {}, depth: {}", uci_move, (evaluation as f32 / 1000.0), depth);
 
     let client_clone = client.clone();
     let game_id_clone = game_id.clone();
@@ -104,6 +105,7 @@ fn apply_ai_move(
 }
 
 fn apply_opponent_move(events: &Receiver<GameEvent>, move_generator: &MoveGenerator, game_state: &mut GameState, turn: &u32) -> Result<(), String> {
+    // receive moves from receiver until we get the event corresponding to the opponent's next move 
     let last_move = loop {
         let event = events.recv().map_err(|err| err.to_string())?;
         let moves_raw = event.moves.unwrap();

@@ -3,11 +3,12 @@ name = "lichess-bot"
 version = "0.1.0"
 authors = ["Jiri Hartikka <jiri.hartikka@gmail.com>"]
 edition = "2018"
+rust = "1.51.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chess = { git = "https://github.com/JiriHartikka/rust-chess-engine", package = "rust-chess", version = "0.1.0" }
+chess = { git = "https://github.com/JiriHartikka/rust-chess-engine", package = "rust-chess", rev = "647f6a5" }
 reqwest = { version = "0.11.1", features = ["stream"] }
 futures = "0.3.13"
 tokio = { version = "1.2.0", features = ["full"] }
