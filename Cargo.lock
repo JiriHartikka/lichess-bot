@@ -794,7 +794,7 @@ dependencies = [
 [[package]]
 name = "rust-chess"
 version = "0.1.0"
-source = "git+https://github.com/JiriHartikka/rust-chess-engine?rev=647f6a5#647f6a50d0f46436bfa19daaf50c783d63b16209"
+source = "git+https://github.com/JiriHartikka/rust-chess-engine?rev=a89a931#a89a931ae89b8ea7ba47ad798d59ddcc35f7997e"
 dependencies = [
  "crossbeam",
  "lazy_static",

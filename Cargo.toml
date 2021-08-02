@@ -8,7 +8,7 @@ rust = "1.51.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chess = { git = "https://github.com/JiriHartikka/rust-chess-engine", package = "rust-chess", rev = "647f6a5" }
+chess = { git = "https://github.com/JiriHartikka/rust-chess-engine", package = "rust-chess", rev = "a89a931" }
 reqwest = { version = "0.11.1", features = ["stream"] }
 futures = "0.3.13"
 tokio = { version = "1.2.0", features = ["full"] }
