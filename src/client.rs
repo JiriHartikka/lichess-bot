@@ -6,10 +6,10 @@ extern crate serde_json;
 
 use serde::{Deserialize, Serialize};
 
+use std::ops::Deref;
+use std::str::from_utf8;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Receiver;
-use std::str::from_utf8;
-use std::ops::Deref;
 
 use bytes::Bytes;
 
@@ -38,7 +38,6 @@ impl LichessClient {
             .send();
 
         let _handle = tokio::spawn(async move {
-                
             match response.await {
                 Ok(response) => {
                     let mut stream = response.bytes_stream();
@@ -49,30 +48,30 @@ impl LichessClient {
                                 //println!("Event raw: {:?}", bytes);
 
                                 match parse_json(&bytes) {
-                                    Ok(Some(event)) => if let Err(err) = sender.send(event) {
-                                        println!("Error sending bot event: {}", err);
-                                        break;
-                                    },
+                                    Ok(Some(event)) => {
+                                        if let Err(err) = sender.send(event) {
+                                            println!("Error sending bot event: {}", err);
+                                            break;
+                                        }
+                                    }
                                     Ok(None) => continue,
                                     Err(err) => {
                                         println!("Error while parsing event: {:?}", err);
                                         break;
                                     }
                                 }
-                            },
+                            }
                             Err(err) => {
                                 println!("Error while receiving events: {}", err.to_string());
                                 break;
-                            },
+                            }
                         };
                     }
-
-                },
-                Err(e) => { 
+                }
+                Err(e) => {
                     println!("Error while opening event stream: {}", e.to_string());
-                },
-            }    
-
+                }
+            }
         });
 
         Ok(receiver)
@@ -86,14 +85,16 @@ impl LichessClient {
         let client = reqwest::Client::new();
 
         let response = client
-            .get(&format!("https://lichess.org/api/bot/game/stream/{}", game_id))
+            .get(&format!(
+                "https://lichess.org/api/bot/game/stream/{}",
+                game_id
+            ))
             .header("authorization", format!("Bearer {}", self.access_token))
             .send();
-        
+
         println!("stream request sent...");
 
         let _handle = tokio::spawn(async move {
-            
             println!("task spawned");
 
             match response.await {
@@ -107,41 +108,43 @@ impl LichessClient {
                                 //println!("Game event raw: {:?}", bytes);
 
                                 match parse_json(&bytes) {
-                                    Ok(Some(event)) => if let Err(err) = sender.send(event) {
-                                        println!("Error sending game event: {}", err);
-                                        break;
-                                    },
+                                    Ok(Some(event)) => {
+                                        if let Err(err) = sender.send(event) {
+                                            println!("Error sending game event: {}", err);
+                                            break;
+                                        }
+                                    }
                                     Ok(None) => continue,
                                     Err(err) => {
                                         println!("Error while parsing event: {:?}", err);
                                         break;
                                     }
                                 };
-                            },
+                            }
                             Err(err) => {
                                 println!("Error while receiving game events: {}", err.to_string());
                                 break;
-                            },
+                            }
                         };
                     }
-
-                },
-                Err(e) => { 
+                }
+                Err(e) => {
                     println!("Error while opening event stream: {}", e.to_string());
-                },
-            }    
-
+                }
+            }
         });
 
-        Ok(receiver)    
+        Ok(receiver)
     }
 
     pub async fn accept_challenge(&self, challenge_id: String) -> Result<(), LichessError> {
-
         println!("Accepting challenge");
 
         reqwest::Client::new()
-            .post(&format!("https://lichess.org/api/challenge/{}/accept", challenge_id))
+            .post(&format!(
+                "https://lichess.org/api/challenge/{}/accept",
+                challenge_id
+            ))
             .header("authorization", format!("Bearer {}", self.access_token))
             .send()
             .await
@@ -151,7 +154,10 @@ impl LichessClient {
 
     pub async fn play_move(&self, game_id: String, uci_move: String) -> Result<(), LichessError> {
         reqwest::Client::new()
-            .post(&format!("https://lichess.org/api/bot/game/{}/move/{}", game_id, uci_move))
+            .post(&format!(
+                "https://lichess.org/api/bot/game/{}/move/{}",
+                game_id, uci_move
+            ))
             .header("authorization", format!("Bearer {}", self.access_token))
             .send()
             .await
@@ -170,13 +176,13 @@ impl LichessClient {
             .map(|response| response.bytes())?
             .await
             .map_err(|e| LichessError::RequestError(format!("{:?}", e)))
-            .and_then(|response_body| parse_json(&response_body)?
-                .ok_or(LichessError::ParseError("Could not parse LichessProfile".to_string())) ) 
-        
+            .and_then(|response_body| {
+                parse_json(&response_body)?.ok_or(LichessError::ParseError(
+                    "Could not parse LichessProfile".to_string(),
+                ))
+            })
     }
-
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LichessEvent {
@@ -204,13 +210,10 @@ pub struct Variant {
     pub key: String,
 }
 
-
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LichessProfile {
     pub id: String,
 }
-
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GameEvent {
@@ -243,8 +246,8 @@ pub enum LichessError {
 }
 
 fn parse_json<'a, T: Deserialize<'a>>(event_bytes: &'a Bytes) -> Result<Option<T>, LichessError> {
-    let event_str = from_utf8(event_bytes.deref())
-        .map_err(|e| LichessError::ParseError(e.to_string()))?;
+    let event_str =
+        from_utf8(event_bytes.deref()).map_err(|e| LichessError::ParseError(e.to_string()))?;
 
     if event_str == "\n" {
         return Ok(None);

@@ -1,7 +1,7 @@
-use tokio;
-use tokio::task::{JoinHandle, spawn_blocking};
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
+use tokio;
+use tokio::task::{spawn_blocking, JoinHandle};
 
 use chess::model::game_state;
 use chess::model::game_state::{Color, GameState};
@@ -10,25 +10,31 @@ use chess::search::minimax_search::iterative_alpha_beta;
 use chess::search::transposition_table::TranspositionTable;
 use chess::uci::uci_utils;
 
-use crate::client::{LichessClient, Challenge, Game, LichessProfile, LichessError, GameEvent};
+use crate::client::{Challenge, Game, GameEvent, LichessClient, LichessError, LichessProfile};
 
-
-pub async fn handle_challenge(client: LichessClient, challenge: Challenge) -> Result<(), LichessError> {
+pub async fn handle_challenge(
+    client: LichessClient,
+    challenge: Challenge,
+) -> Result<(), LichessError> {
     if challenge.variant.key != "standard" || challenge.rated == true {
         return Ok(());
     }
 
-    client.accept_challenge(challenge.id).await   
+    client.accept_challenge(challenge.id).await
 }
 
-pub async fn spawn_game_handler(client: LichessClient, game: Game, profile: LichessProfile) -> JoinHandle<()> {
+pub async fn spawn_game_handler(
+    client: LichessClient,
+    game: Game,
+    profile: LichessProfile,
+) -> JoinHandle<()> {
     return spawn_blocking(move || {
         match client.game_stream(game.id) {
             Ok(stream) => {
                 if let Err(err) = play_game(client, profile, stream) {
                     println!("Error while executing game: {:?}", err);
                 }
-            },
+            }
             Err(err) => {
                 println!("Failed to read game events: {:?}", err);
             }
@@ -36,7 +42,11 @@ pub async fn spawn_game_handler(client: LichessClient, game: Game, profile: Lich
     });
 }
 
-fn play_game(client: LichessClient, profile: LichessProfile, events: Receiver<GameEvent>) -> Result<(), String> {
+fn play_game(
+    client: LichessClient,
+    profile: LichessProfile,
+    events: Receiver<GameEvent>,
+) -> Result<(), String> {
     println!("---game starting---");
 
     let initial_event = events.recv().map_err(|err| err.to_string())?;
@@ -58,13 +68,20 @@ fn play_game(client: LichessClient, profile: LichessProfile, events: Receiver<Ga
 
     while move_generator.generate_moves(&game_state).moves.len() > 0 {
         if game_state.to_move() == ai_color {
-            if let Err(err) = apply_ai_move(&client, &game_id, &move_generator, &mut game_state, &mut transposition_table) {
+            if let Err(err) = apply_ai_move(
+                &client,
+                &game_id,
+                &move_generator,
+                &mut game_state,
+                &mut transposition_table,
+            ) {
                 println!("Failed apply AI move: {:?}", err);
                 panic!();
             }
             turn += 1;
         } else {
-            if let Err(err) = apply_opponent_move(&events, &move_generator, &mut game_state, &turn) {
+            if let Err(err) = apply_opponent_move(&events, &move_generator, &mut game_state, &turn)
+            {
                 println!("Failed to apply player move: {:?}", err);
                 panic!();
             }
@@ -82,12 +99,18 @@ fn apply_ai_move(
     game_id: &String,
     move_generator: &MoveGenerator,
     game_state: &mut GameState,
-    table: &mut TranspositionTable) -> Result<(), LichessError> {
-
-    let (next_move, evaluation, depth) = iterative_alpha_beta(game_state, move_generator, table, Duration::from_secs(5));
+    table: &mut TranspositionTable,
+) -> Result<(), LichessError> {
+    let (next_move, evaluation, depth) =
+        iterative_alpha_beta(game_state, move_generator, table, Duration::from_secs(5));
     let uci_move = uci_utils::move_to_uci(&next_move.unwrap());
 
-    println!("AI plays: {}, evaluation: {}, depth: {}", uci_move, (evaluation as f32 / 1000.0), depth);
+    println!(
+        "AI plays: {}, evaluation: {}, depth: {}",
+        uci_move,
+        (evaluation as f32 / 1000.0),
+        depth
+    );
 
     let client_clone = client.clone();
     let game_id_clone = game_id.clone();
@@ -96,7 +119,10 @@ fn apply_ai_move(
 
     tokio::spawn(async move {
         println!("Sending move request...");
-        if let Err(e) = client_clone.play_move(game_id_clone, uci_move.to_string()).await {
+        if let Err(e) = client_clone
+            .play_move(game_id_clone, uci_move.to_string())
+            .await
+        {
             println!("Failed to play move: {:?}", e);
         };
     });
@@ -104,32 +130,38 @@ fn apply_ai_move(
     Ok(())
 }
 
-fn apply_opponent_move(events: &Receiver<GameEvent>, move_generator: &MoveGenerator, game_state: &mut GameState, turn: &u32) -> Result<(), String> {
-    // receive moves from receiver until we get the event corresponding to the opponent's next move 
+fn apply_opponent_move(
+    events: &Receiver<GameEvent>,
+    move_generator: &MoveGenerator,
+    game_state: &mut GameState,
+    turn: &u32,
+) -> Result<(), String> {
+    // receive moves from receiver until we get the event corresponding to the opponent's next move
     let last_move = loop {
         let event = events.recv().map_err(|err| err.to_string())?;
         let moves_raw = event.moves.unwrap();
         let all_moves = moves_raw.split(" ").collect::<Vec<&str>>();
-        
-        if all_moves.len() >= (*turn as usize) { 
+
+        if all_moves.len() >= (*turn as usize) {
             break all_moves
                 .into_iter()
                 .nth((*turn as usize) - 1)
                 .unwrap()
-                .to_string() 
-            }
+                .to_string();
+        }
     };
 
     let uci_move = uci_utils::parse_move(last_move.as_str())?;
-    
-    let next_move = move_generator.generate_moves(game_state)
+
+    let next_move = move_generator
+        .generate_moves(game_state)
         .moves
         .into_iter()
         .find(|m| m.from == uci_move.0 && m.to == uci_move.1 && m.promotes_to == uci_move.2)
         .unwrap();
 
-    println!("Opponent played: {}", uci_move);        
-    
+    println!("Opponent played: {}", uci_move);
+
     game_state.apply_move_mut(next_move);
 
     Ok(())

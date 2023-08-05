@@ -1,0 +1,8 @@
+# Git hooks
+
+This folder contains git hooks useful for development. These hooks must be installed by the developer
+by linking them to the .git/hooks folder. 
+
+Symbolic links can be created on Unix platforms (run in the root of the project) with command: 
+
+'ln -s $(pwd)/git-hooks/pre-commit .git/hooks'

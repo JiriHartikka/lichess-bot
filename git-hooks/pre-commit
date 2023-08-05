@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cargo fmt --check --quiet
+
+if [ $? -ne 0 ]; then
+	echo "Sources are not properly formatted. Run 'cargo fmt' and try again"
+	exit 1
+fi

@@ -8,18 +8,17 @@ extern crate chess;
 use std::env;
 use std::process;
 
-use client::LichessClient;
 use crate::game_manager::{handle_challenge, spawn_game_handler};
+use client::LichessClient;
 
 #[tokio::main]
 pub async fn main() {
-
     let access_token = match env::var("LICHESS_ACCESS_TOKEN") {
         Ok(token) if token != "" => token,
         _ => {
             println!("Set environment variable LICHESS_ACCESS_TOKEN");
             process::exit(2);
-        } 
+        }
     };
 
     let client = LichessClient::new(access_token);
@@ -45,12 +44,10 @@ pub async fn main() {
                 Ok(_) => (),
                 Err(err) => println!("Error: {:?}", err),
             }
-        }
-        else if event.event_type == "gameStart" {
+        } else if event.event_type == "gameStart" {
             let client_clone = client.clone();
-            let _handle = spawn_game_handler(client_clone, event.game.unwrap(),  profile.clone()).await;
+            let _handle =
+                spawn_game_handler(client_clone, event.game.unwrap(), profile.clone()).await;
         }
-
-    } 
-    
+    }
 }
